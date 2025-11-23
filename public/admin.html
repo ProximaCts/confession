@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Confession</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .admin-main {
+      max-width: 1000px;
+      margin: 24px auto;
+      padding: 0 16px 24px;
+    }
+    .admin-card {
+      background: rgba(15, 23, 42, 0.98);
+      border-radius: 18px;
+      border: 1px solid rgba(55, 65, 81, 0.95);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+      padding: 16px 18px;
+    }
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .admin-title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .admin-sub {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    .admin-login {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .admin-login input {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 12px;
+      outline: none;
+    }
+    .admin-login button {
+      border-radius: 999px;
+      border: 0;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #22c55e;
+      color: #022c22;
+      font-weight: 600;
+    }
+    .admin-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+    .admin-conf {
+      border-radius: 14px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: radial-gradient(circle at 0 0,
+        rgba(34, 197, 94, 0.07),
+        rgba(15, 23, 42, 0.98));
+      padding: 9px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+    }
+    .admin-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    .admin-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .btn-sm {
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 11px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .btn-sm.approve {
+      border-color: #22c55e;
+      color: #bbf7d0;
+    }
+    .btn-sm.danger {
+      border-color: #f97373;
+      color: #fecaca;
+    }
+    .pill-status {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+    }
+    .status-pending {
+      border-color: #facc15;
+      color: #facc15;
+    }
+    .status-approved {
+      border-color: #22c55e;
+      color: #bbf7d0;
+    }
+    .admin-error {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #f97373;
+      min-height: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-left">
+      <div class="nav-logo">C</div>
+      <div>
+        <div class="nav-title-main">Confession Admin</div>
+        <div class="nav-title-sub">Duyệt &amp; quản lý confession</div>
+      </div>
+    </div>
+    <div class="nav-badge">
+      🔒 Chỉ dành cho Ban quản trị
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <section class="admin-card">
+      <div class="admin-header">
+        <div>
+          <div class="admin-title">Danh sách confession chờ duyệt</div>
+          <div class="admin-sub">
+            Nhập mã admin để xem các confession trạng thái <strong>pending</strong>.
+          </div>
+        </div>
+        <div class="admin-login">
+          <input
+            type="password"
+            id="admin-token"
+            placeholder="Nhập ADMIN_TOKEN..."
+          />
+          <button id="btn-login">Đăng nhập</button>
+        </div>
+      </div>
+      <div class="admin-error" id="admin-error"></div>
+      <div id="admin-list" class="admin-list">
+        <!-- render bằng JS -->
+      </div>
+    </section>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>
