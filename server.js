@@ -8,6 +8,33 @@ const DATA_FILE = path.join(__dirname, "confessions.json");
 
 // TOKEN admin – đặt trong Render env: ADMIN_TOKEN=xxxxx
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "changeme-local-only";
+// Online tracking (in-memory, reset khi server restart)
+const onlineClients = {}; // { clientId: lastSeenTimestamp }
+// API: client ping để tính số người đang online (xấp xỉ)
+app.post("/api/ping", (req, res) => {
+  const { clientId } = req.body || {};
+  if (!clientId || typeof clientId !== "string") {
+    return res.status(400).json({ error: "Missing clientId" });
+  }
+
+  const now = Date.now();
+  const THRESHOLD = 2 * 60 * 1000; // 2 phút
+
+  // cập nhật lastSeen
+  onlineClients[clientId] = now;
+
+  // dọn rác: xoá client quá 2 phút không ping
+  for (const [id, ts] of Object.entries(onlineClients)) {
+    if (now - ts > THRESHOLD) {
+      delete onlineClients[id];
+    }
+  }
+
+  const onlineCount = Object.keys(onlineClients).length;
+
+  res.json({ online: onlineCount });
+});
+
 
 app.use(express.json());
 

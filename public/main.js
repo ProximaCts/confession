@@ -32,7 +32,31 @@
     const hh = String(date.getHours()).padStart(2, "0");
     const min = String(date.getMinutes()).padStart(2, "0");
     return `${dd}/${mm}/${yyyy} • ${hh}:${min}`;
+        const statToday = document.getElementById("stat-today");
+  const statTotal = document.getElementById("stat-total");
+  const statOnline = document.getElementById("stat-online");
+  const toggleAutoBtn = document.getElementById("toggle-autoslide");
+  const btnPrev = document.getElementById("btn-prev");
+  const btnNext = document.getElementById("btn-next");
+
+  const PAGE_SIZE = 6;          // mỗi slide 6 box
+  const AUTO_INTERVAL = 8000;   // 8 giây
+  const ONLINE_PING_INTERVAL = 20000; // 20 giây
+
+  let currentPage = 0;
+  let pagesCount = 0;
+  let autoSlide = true;
+  let slideTimer = null;
+
+  // tạo / lấy clientId
+  let clientId = localStorage.getItem("conf_client_id");
+  if (!clientId) {
+    clientId = "cl_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("conf_client_id", clientId);
   }
+
+  }
+  
 
   function isToday(ts) {
     const d = new Date(ts);
@@ -43,7 +67,7 @@
       d.getDate() === now.getDate()
     );
   }
-
+ 
   function showToast(message) {
     toastText.textContent = message;
     toast.classList.add("show");
@@ -57,6 +81,26 @@
     const todayCount = confessions.filter((c) => isToday(c.createdAt)).length;
     statTotal.textContent = total;
     statToday.textContent = todayCount;
+  }
+  async function pingOnline() {
+    try {
+      const res = await fetch("/api/ping", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ clientId }),
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (typeof data.online === "number" && statOnline) {
+        statOnline.textContent = data.online;
+      }
+    } catch (e) {
+      console.error("Ping online error:", e);
+    }
   }
 
   // ---- Gọi API backend ----
@@ -332,4 +376,6 @@ card.appendChild(footer);
   // ---- Init ----
   renderConfessions();
   updateCharCount();
+  pingOnline();
+  setInterval(pingOnline, ONLINE_PING_INTERVAL);
 })();
