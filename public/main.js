@@ -11,17 +11,29 @@
   const toastText = document.getElementById("toast-text");
   const statToday = document.getElementById("stat-today");
   const statTotal = document.getElementById("stat-total");
+  const statOnline = document.getElementById("stat-online");
   const toggleAutoBtn = document.getElementById("toggle-autoslide");
   const btnPrev = document.getElementById("btn-prev");
   const btnNext = document.getElementById("btn-next");
 
-  const PAGE_SIZE = 6;          // mỗi slide 6 box
-  const AUTO_INTERVAL = 8000;   // 8 giây
+  const PAGE_SIZE = 6;                // mỗi slide 6 box
+  const AUTO_INTERVAL = 8000;         // auto slide 8 giây
+  const ONLINE_PING_INTERVAL = 20000; // ping online 20 giây
 
   let currentPage = 0;
   let pagesCount = 0;
   let autoSlide = true;
   let slideTimer = null;
+
+  // tạo / lấy clientId để đếm online
+  let clientId = localStorage.getItem("conf_client_id");
+  if (!clientId) {
+    clientId =
+      "cl_" +
+      Math.random().toString(36).slice(2) +
+      Date.now().toString(36);
+    localStorage.setItem("conf_client_id", clientId);
+  }
 
   // ---- Helper: format ngày giờ ----
   function formatDateTime(ts) {
@@ -32,31 +44,7 @@
     const hh = String(date.getHours()).padStart(2, "0");
     const min = String(date.getMinutes()).padStart(2, "0");
     return `${dd}/${mm}/${yyyy} • ${hh}:${min}`;
-        const statToday = document.getElementById("stat-today");
-  const statTotal = document.getElementById("stat-total");
-  const statOnline = document.getElementById("stat-online");
-  const toggleAutoBtn = document.getElementById("toggle-autoslide");
-  const btnPrev = document.getElementById("btn-prev");
-  const btnNext = document.getElementById("btn-next");
-
-  const PAGE_SIZE = 6;          // mỗi slide 6 box
-  const AUTO_INTERVAL = 8000;   // 8 giây
-  const ONLINE_PING_INTERVAL = 20000; // 20 giây
-
-  let currentPage = 0;
-  let pagesCount = 0;
-  let autoSlide = true;
-  let slideTimer = null;
-
-  // tạo / lấy clientId
-  let clientId = localStorage.getItem("conf_client_id");
-  if (!clientId) {
-    clientId = "cl_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    localStorage.setItem("conf_client_id", clientId);
   }
-
-  }
-  
 
   function isToday(ts) {
     const d = new Date(ts);
@@ -67,7 +55,7 @@
       d.getDate() === now.getDate()
     );
   }
- 
+
   function showToast(message) {
     toastText.textContent = message;
     toast.classList.add("show");
@@ -82,6 +70,8 @@
     statTotal.textContent = total;
     statToday.textContent = todayCount;
   }
+
+  // ---- Ping để lấy số người online ----
   async function pingOnline() {
     try {
       const res = await fetch("/api/ping", {
@@ -103,7 +93,7 @@
     }
   }
 
-  // ---- Gọi API backend ----
+  // ---- Gọi API backend lấy confessions đã approved ----
   async function fetchConfessionsFromServer() {
     try {
       const res = await fetch("/api/confessions");
@@ -150,6 +140,7 @@
     }, AUTO_INTERVAL);
   }
 
+  // ---- Render confession vào slider ----
   async function renderConfessions() {
     const confessions = await fetchConfessionsFromServer();
 
@@ -215,39 +206,40 @@
         meta.appendChild(leftMeta);
         meta.appendChild(time);
 
+        // Nội dung với Mở rộng / Thu gọn
         const fullContent = (c.content || "").trim();
-const isLong = fullContent.length > 40;
+        const isLong = fullContent.length > 40;
 
-const content = document.createElement("p");
-content.className = "confession-content";
+        const content = document.createElement("p");
+        content.className = "confession-content";
 
-if (isLong) {
-  content.textContent = fullContent.slice(0, 40) + "…";
-} else {
-  content.textContent = fullContent;
-}
-let toggleBtn = null;
+        if (isLong) {
+          content.textContent = fullContent.slice(0, 40) + "…";
+        } else {
+          content.textContent = fullContent;
+        }
 
-if (isLong) {
-  toggleBtn = document.createElement("button");
-  toggleBtn.type = "button";
-  toggleBtn.className = "confession-toggle";
-  toggleBtn.textContent = "Mở rộng";
+        let toggleBtn = null;
 
-  let expanded = false;
+        if (isLong) {
+          toggleBtn = document.createElement("button");
+          toggleBtn.type = "button";
+          toggleBtn.className = "confession-toggle";
+          toggleBtn.textContent = "Mở rộng";
 
-  toggleBtn.addEventListener("click", () => {
-    expanded = !expanded;
-    if (expanded) {
-      content.textContent = fullContent;
-      toggleBtn.textContent = "Thu gọn";
-    } else {
-      content.textContent = fullContent.slice(0, 40) + "…";
-      toggleBtn.textContent = "Mở rộng";
-    }
-  });
-}
+          let expanded = false;
 
+          toggleBtn.addEventListener("click", () => {
+            expanded = !expanded;
+            if (expanded) {
+              content.textContent = fullContent;
+              toggleBtn.textContent = "Thu gọn";
+            } else {
+              content.textContent = fullContent.slice(0, 40) + "…";
+              toggleBtn.textContent = "Mở rộng";
+            }
+          });
+        }
 
         const footer = document.createElement("div");
         footer.className = "confession-footer";
@@ -272,12 +264,11 @@ if (isLong) {
         footer.appendChild(tag);
 
         card.appendChild(meta);
-card.appendChild(content);
-if (toggleBtn) {
-  card.appendChild(toggleBtn);
-}
-card.appendChild(footer);
-
+        card.appendChild(content);
+        if (toggleBtn) {
+          card.appendChild(toggleBtn);
+        }
+        card.appendChild(footer);
 
         page.appendChild(card);
       });

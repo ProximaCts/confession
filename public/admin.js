@@ -38,6 +38,10 @@
         }
         throw new Error("Không tải được danh sách.");
       }
+if (res.status === 401) {
+  localStorage.removeItem("conf_admin_token");
+  throw new Error("Sai token admin hoặc không được phép truy cập.");
+}
 
       const data = await res.json();
       renderList(data);

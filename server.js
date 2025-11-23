@@ -36,7 +36,8 @@ app.post("/api/ping", (req, res) => {
 });
 
 
-app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 
 // file tĩnh
 app.use(express.static(path.join(__dirname, "public")));
@@ -77,10 +78,7 @@ function saveConfessions(list) {
 
 // middleware check admin
 function requireAdmin(req, res, next) {
-  const token =
-    req.query.token ||
-    req.headers["x-admin-token"] ||
-    req.body.token;
+  const token = req.headers["x-admin-token"];
 
   if (!token || token !== ADMIN_TOKEN) {
     return res.status(401).json({ error: "Unauthorized" });
