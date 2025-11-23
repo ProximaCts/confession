@@ -481,6 +481,14 @@
       gap: 8px;
       margin-bottom: 8px;
     }
+     .feed-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+    }
+
 
     .feed-title {
       font-size: 15px;
@@ -507,14 +515,53 @@
     }
 
     .confession-list {
-      margin-top: 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 320px;
-      overflow: auto;
-      padding-right: 2px;
-    }
+  margin-top: 6px;
+  overflow: hidden;                /* ẩn phần trượt ra ngoài */
+  position: relative;
+}
+
+/* track chứa các page */
+.confession-list-track {
+  display: flex;
+  transition: transform 0.6s ease-in-out;
+  will-change: transform;
+}
+
+/* mỗi page là 1 "slide" full width, chứa tối đa 6 card */
+.slider-page {
+  min-width: 100%;
+  box-sizing: border-box;
+  padding-right: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.auto-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  background: rgba(15, 23, 42, 0.95);
+  color: #e5e7eb;
+  font-size: 11px;
+  padding: 5px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.1s;
+}
+
+.auto-btn:hover {
+  background: rgba(31, 41, 55, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.7);
+}
+
+.auto-btn.active {
+  border-color: #22c55e;
+  color: #bbf7d0;
+}
+
 
     .confession-empty {
       font-size: 12px;
@@ -722,25 +769,31 @@
 
     <!-- FEED (DEMO LOCAL) -->
     <section class="feed-section">
-      <div class="feed-header">
-        <div>
-          <div class="feed-title">Bảng tin confession (demo trên thiết bị này)</div>
-          <div class="feed-subtitle">
-            Những confession bạn gửi trên máy này sẽ hiện ở đây để xem lại.
-            Khi lên server thật, admin sẽ dùng dữ liệu từ Google Form / backend.
-          </div>
-        </div>
-        <div class="feed-tags">
-          <div class="feed-tag">#anonymous</div>
-          <div class="feed-tag">#school</div>
-          <div class="feed-tag">#crush</div>
-        </div>
+  <div class="feed-header">
+    <div>
+      <div class="feed-title">Bảng tin confession</div>
+      <div class="feed-subtitle">
+        Các confession mới nhất sẽ hiển thị theo dạng slide, mỗi 6 box một lần.
       </div>
+    </div>
+    <div class="feed-actions">
+      <div class="feed-tags">
+        <div class="feed-tag">#anonymous</div>
+        <div class="feed-tag">#school</div>
+        <div class="feed-tag">#crush</div>
+      </div>
+      <button id="toggle-autoslide" class="auto-btn">
+        ⏸ Tắt auto slide
+      </button>
+    </div>
+  </div>
 
-      <div id="confession-list" class="confession-list">
-        <!-- Confession cards sẽ được JS render -->
-      </div>
-    </section>
+  <!-- track slider -->
+  <div id="confession-list" class="confession-list">
+    <!-- Các slide-page sẽ được JS render -->
+  </div>
+</section>
+
   </main>
 
   <div class="toast" id="toast">
@@ -766,8 +819,17 @@
     const toastText = document.getElementById("toast-text");
     const statToday = document.getElementById("stat-today");
     const statTotal = document.getElementById("stat-total");
+    const toggleAutoBtn = document.getElementById("toggle-autoslide");
 
-    // ---- Helper: format ngày giờ giống bản cũ ----
+    const PAGE_SIZE = 6;          // mỗi slide 6 box
+    const AUTO_INTERVAL = 8000;   // 8 giây
+
+    let currentPage = 0;
+    let pagesCount = 0;
+    let autoSlide = true;
+    let slideTimer = null;
+
+    // ---- Helper: format ngày giờ ----
     function formatDateTime(ts) {
       const date = new Date(ts);
       const dd = String(date.getDate()).padStart(2, "0");
@@ -815,6 +877,29 @@
       }
     }
 
+    function stopAutoSlide() {
+      if (slideTimer) {
+        clearInterval(slideTimer);
+        slideTimer = null;
+      }
+    }
+
+    function startAutoSlide() {
+      stopAutoSlide();
+      if (!autoSlide || pagesCount <= 1) return;
+      slideTimer = setInterval(() => {
+        goToPage((currentPage + 1) % pagesCount);
+      }, AUTO_INTERVAL);
+    }
+
+    function goToPage(pageIndex) {
+      if (pagesCount === 0) return;
+      currentPage = pageIndex;
+      const track = confessionList.querySelector(".confession-list-track");
+      if (!track) return;
+      track.style.transform = `translateX(-${currentPage * 100}%)`;
+    }
+
     async function renderConfessions() {
       const confessions = await fetchConfessionsFromServer();
 
@@ -826,8 +911,33 @@
         empty.textContent =
           "Chưa có confession nào được lưu trên server. Hãy là người gửi tâm sự đầu tiên!";
         confessionList.appendChild(empty);
-      } else {
-        confessions.forEach((c) => {
+        pagesCount = 0;
+        stopAutoSlide();
+        renderStats(confessions);
+        return;
+      }
+
+      // track chứa các slide-page
+      const track = document.createElement("div");
+      track.className = "confession-list-track";
+      confessionList.appendChild(track);
+
+      // nhóm theo page size = 6
+      const sorted = [...confessions].sort(
+        (a, b) => b.createdAt - a.createdAt
+      );
+      const pages = [];
+      for (let i = 0; i < sorted.length; i += PAGE_SIZE) {
+        pages.push(sorted.slice(i, i + PAGE_SIZE));
+      }
+      pagesCount = pages.length;
+      currentPage = 0;
+
+      pages.forEach((pageItems) => {
+        const page = document.createElement("div");
+        page.className = "slider-page";
+
+        pageItems.forEach((c) => {
           const card = document.createElement("article");
           card.className = "confession-card";
 
@@ -838,7 +948,6 @@
           const anon = document.createElement("span");
           anon.className = "badge-anon";
           anon.textContent = "Người gửi ẩn danh";
-
           leftMeta.appendChild(anon);
 
           if (c.grade) {
@@ -886,11 +995,17 @@
           card.appendChild(content);
           card.appendChild(footer);
 
-          confessionList.appendChild(card);
+          page.appendChild(card);
         });
-      }
+
+        track.appendChild(page);
+      });
+
+      // reset transform
+      track.style.transform = "translateX(0%)";
 
       renderStats(confessions);
+      startAutoSlide();
     }
 
     // ---- Đếm ký tự ----
@@ -906,7 +1021,21 @@
       }
     });
 
-    // ---- Submit form: gọi POST /api/confessions ----
+    // ---- Toggle auto slide ----
+    toggleAutoBtn.addEventListener("click", () => {
+      autoSlide = !autoSlide;
+      if (autoSlide) {
+        toggleAutoBtn.textContent = "⏸ Tắt auto slide";
+        toggleAutoBtn.classList.add("active");
+        startAutoSlide();
+      } else {
+        toggleAutoBtn.textContent = "▶ Bật auto slide";
+        toggleAutoBtn.classList.remove("active");
+        stopAutoSlide();
+      }
+    });
+
+    // ---- Submit form: POST /api/confessions ----
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const content = contentInput.value.trim();
@@ -939,7 +1068,7 @@
         form.reset();
         updateCharCount();
         showToast("Đã gửi confession ẩn danh thành công! 💚");
-        await renderConfessions(); // load lại danh sách từ server
+        await renderConfessions(); // load lại từ server
       } catch (err) {
         console.error(err);
         errorMsg.textContent =
