@@ -171,9 +171,39 @@
         meta.appendChild(leftMeta);
         meta.appendChild(time);
 
-        const content = document.createElement("p");
-        content.className = "confession-content";
-        content.textContent = c.content;
+        const fullContent = (c.content || "").trim();
+const isLong = fullContent.length > 40;
+
+const content = document.createElement("p");
+content.className = "confession-content";
+
+if (isLong) {
+  content.textContent = fullContent.slice(0, 40) + "…";
+} else {
+  content.textContent = fullContent;
+}
+let toggleBtn = null;
+
+if (isLong) {
+  toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "confession-toggle";
+  toggleBtn.textContent = "Mở rộng";
+
+  let expanded = false;
+
+  toggleBtn.addEventListener("click", () => {
+    expanded = !expanded;
+    if (expanded) {
+      content.textContent = fullContent;
+      toggleBtn.textContent = "Thu gọn";
+    } else {
+      content.textContent = fullContent.slice(0, 40) + "…";
+      toggleBtn.textContent = "Mở rộng";
+    }
+  });
+}
+
 
         const footer = document.createElement("div");
         footer.className = "confession-footer";
@@ -198,8 +228,12 @@
         footer.appendChild(tag);
 
         card.appendChild(meta);
-        card.appendChild(content);
-        card.appendChild(footer);
+card.appendChild(content);
+if (toggleBtn) {
+  card.appendChild(toggleBtn);
+}
+card.appendChild(footer);
+
 
         page.appendChild(card);
       });
