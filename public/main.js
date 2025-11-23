@@ -14,6 +14,27 @@
   const toggleAutoBtn = document.getElementById("toggle-autoslide");
   const btnPrev = document.getElementById("btn-prev");
   const btnNext = document.getElementById("btn-next");
+    const onlineCountEl = document.getElementById("online-count");
+      async function pingOnline() {
+    if (!onlineCountEl) return;
+    try {
+      const res = await fetch("/api/ping", { method: "POST" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (typeof data.online === "number") {
+        onlineCountEl.textContent = data.online;
+      }
+    } catch (e) {
+      console.error("ping online failed", e);
+    }
+  }
+
+  function startOnlinePing() {
+    pingOnline();
+    setInterval(pingOnline, 15000); // 15s ping 1 lần
+  }
+
+
 
   const PAGE_SIZE = 6;          // mỗi slide 6 box
   const AUTO_INTERVAL = 8000;   // 8 giây
@@ -378,4 +399,6 @@ card.appendChild(footer);
   updateCharCount();
   pingOnline();
   setInterval(pingOnline, ONLINE_PING_INTERVAL);
+  startOnlinePing();   // 🔥 thêm dòng này
+
 })();

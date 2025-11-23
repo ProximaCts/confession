@@ -4,22 +4,29 @@
   const adminList = document.getElementById("admin-list");
   const adminError = document.getElementById("admin-error");
 
-  let adminToken = localStorage.getItem("conf_admin_token") || "";
-
-  if (adminToken) {
-    tokenInput.value = adminToken;
-    loadPending();
-  }
+  let adminToken = "";
 
   btnLogin.addEventListener("click", () => {
-    adminToken = tokenInput.value.trim();
-    if (!adminToken) {
+    const t = tokenInput.value.trim();
+    if (!t) {
       adminError.textContent = "Vui lòng nhập token admin.";
       return;
     }
-    localStorage.setItem("conf_admin_token", adminToken);
+    adminToken = t;
     loadPending();
   });
+
+ btnLogin.addEventListener("click", () => {
+  const t = tokenInput.value.trim();
+  if (!t) {
+    adminError.textContent = "Vui lòng nhập token admin.";
+    return;
+  }
+  adminToken = t;        // chỉ giữ trong biến JS, không lưu đâu cả
+  adminError.textContent = "";
+  loadPending();
+});
+
 
   async function loadPending() {
     adminError.textContent = "";

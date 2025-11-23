@@ -1,6 +1,28 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const onlineMap = new Map(); // key: ip, value: lastSeen timestamp
+const ONLINE_WINDOW = 5 * 60 * 1000; // 5 phút
+app.post("/api/ping", (req, res) => {
+  const now = Date.now();
+
+  // Lấy IP đơn giản (đủ dùng cho scale trường)
+  const ip =
+    req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+    req.socket.remoteAddress ||
+    "unknown";
+
+  onlineMap.set(ip, now);
+
+  // dọn mấy thằng đã quá 5 phút
+  for (const [key, ts] of onlineMap.entries()) {
+    if (now - ts > ONLINE_WINDOW) {
+      onlineMap.delete(key);
+    }
+  }
+
+  res.json({ online: onlineMap.size });
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
