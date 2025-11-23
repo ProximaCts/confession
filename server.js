@@ -1,20 +1,37 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+
+// Khởi tạo app TRƯỚC khi dùng app.get / app.post
+const app = express();
+const PORT = process.env.PORT || 3000;
+const DATA_FILE = path.join(__dirname, "confessions.json");
+
+// Online users trong 5 phút gần nhất
 const onlineMap = new Map(); // key: ip, value: lastSeen timestamp
 const ONLINE_WINDOW = 5 * 60 * 1000; // 5 phút
+
+// TOKEN admin – đặt trong Render env: ADMIN_TOKEN=xxxxx
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "changeme-local-only";
+
+// -------- MIDDLEWARE CƠ BẢN --------
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
+// -------- API ĐẾM ONLINE --------
 app.post("/api/ping", (req, res) => {
   const now = Date.now();
 
-  // Lấy IP đơn giản (đủ dùng cho scale trường)
+  // Lấy IP đơn giản (đủ dùng cho web trường)
   const ip =
-    req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+    (req.headers["x-forwarded-for"] &&
+      req.headers["x-forwarded-for"].split(",")[0].trim()) ||
     req.socket.remoteAddress ||
     "unknown";
 
   onlineMap.set(ip, now);
 
-  // dọn mấy thằng đã quá 5 phút
+  // Xoá những IP quá 5 phút không ping
   for (const [key, ts] of onlineMap.entries()) {
     if (now - ts > ONLINE_WINDOW) {
       onlineMap.delete(key);
@@ -24,19 +41,7 @@ app.post("/api/ping", (req, res) => {
   res.json({ online: onlineMap.size });
 });
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, "confessions.json");
-
-// TOKEN admin – đặt trong Render env: ADMIN_TOKEN=xxxxx
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "changeme-local-only";
-
-app.use(express.json());
-
-// file tĩnh
-app.use(express.static(path.join(__dirname, "public")));
-
-// Đọc dữ liệu confession từ file
+// -------- HÀM ĐỌC / GHI CONFESSION --------
 function loadConfessions() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
@@ -47,7 +52,7 @@ function loadConfessions() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    // đảm bảo có field status cho mỗi item
+    // Đảm bảo có field status cho mỗi item
     return parsed.map((c) => {
       if (!c.status) {
         // các confession cũ mặc định coi như đã duyệt
@@ -61,7 +66,6 @@ function loadConfessions() {
   }
 }
 
-// Ghi dữ liệu confession xuống file
 function saveConfessions(list) {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(list, null, 2), "utf8");
@@ -70,12 +74,10 @@ function saveConfessions(list) {
   }
 }
 
-// middleware check admin
+// -------- MIDDLEWARE ADMIN --------
 function requireAdmin(req, res, next) {
-  const token =
-    req.query.token ||
-    req.headers["x-admin-token"] ||
-    req.body.token;
+  // CHỈ đọc từ header để tránh lộ query/body
+  const token = req.headers["x-admin-token"];
 
   if (!token || token !== ADMIN_TOKEN) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -83,7 +85,8 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// API: lấy danh sách confession cho PUBLIC FEED – chỉ lấy approved
+// -------- API PUBLIC: FEED --------
+// Chỉ trả về confession đã approved
 app.get("/api/confessions", (req, res) => {
   const confessions = loadConfessions()
     .filter((c) => c.status === "approved")
@@ -92,7 +95,7 @@ app.get("/api/confessions", (req, res) => {
   res.json(confessions);
 });
 
-// API: nhận confession mới (luôn ở trạng thái pending)
+// Nhận confession mới (mặc định pending)
 app.post("/api/confessions", (req, res) => {
   const { target, grade, content } = req.body || {};
 
@@ -110,7 +113,7 @@ app.post("/api/confessions", (req, res) => {
     grade: (grade || "").trim(),
     content: content.trim(),
     createdAt: now,
-    status: "pending", // 🔥 CHỈNH Ở ĐÂY
+    status: "pending",
   };
 
   const list = loadConfessions();
@@ -120,11 +123,12 @@ app.post("/api/confessions", (req, res) => {
   res.status(201).json({ success: true, confession: newConfession });
 });
 
-// ----- ADMIN API -----
+// -------- API ADMIN --------
 
-// Lấy danh sách confession cho admin (pending hoặc tất cả)
+// Lấy danh sách confession cho admin
+// ?status=pending | approved | (bỏ trống = tất cả)
 app.get("/api/admin/confessions", requireAdmin, (req, res) => {
-  const { status } = req.query; // "pending" | "approved" | undefined
+  const { status } = req.query;
   let list = loadConfessions().sort((a, b) => b.createdAt - a.createdAt);
 
   if (status === "pending") {
